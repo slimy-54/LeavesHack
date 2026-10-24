@@ -4,15 +4,15 @@
 </h3>
 
 <p align="center">
-    <a href="https://github.com/MrBZBZ/LeavesHack/stargazers"><img src="https://img.shields.io/github/stars/MrBZBZ/LeavesHack?colorA=363a4f&colorB=b7bdf8&style=for-the-badge" alt=""></a>
-    <a href="https://github.com/MrBZBZ/LeavesHack/issues"><img src="https://img.shields.io/github/issues/MrBZBZ/LeavesHack?colorA=363a4f&colorB=f5a97f&style=for-the-badge" alt=""></a>
-    <a href="https://github.com/MrBZBZ/LeavesHack/contributors"><img src="https://img.shields.io/github/contributors/MrBZBZ/LeavesHack?colorA=363a4f&colorB=a6da95&style=for-the-badge" alt=""></a>
-  <a href="https://github.com/MrBZBZ/LeavesHack/releases"><img src="https://img.shields.io/github/downloads/MrBZBZ/LeavesHack/total?style=for-the-badge&labelColor=363a4f&color=f5c2e7" alt=""></a>
+  <a href="https://github.com/MrBZBZ/LeavesHack/stargazers"><img src="https://img.shields.io/github/stars/MrBZBZ/LeavesHack?colorA=363a4f&colorB=b7bdf8&style=for-the-badge" alt="Stars"></a>
+  <a href="https://github.com/MrBZBZ/LeavesHack/issues"><img src="https://img.shields.io/github/issues/MrBZBZ/LeavesHack?colorA=363a4f&colorB=f5a97f&style=for-the-badge" alt="Issues"></a>
+  <a href="https://github.com/MrBZBZ/LeavesHack/contributors"><img src="https://img.shields.io/github/contributors/MrBZBZ/LeavesHack?colorA=363a4f&colorB=a6da95&style=for-the-badge" alt="Contributors"></a>
+  <a href="https://github.com/MrBZBZ/LeavesHack/releases"><img src="https://img.shields.io/github/downloads/MrBZBZ/LeavesHack/total?style=for-the-badge&labelColor=363a4f&color=f5c2e7" alt="Downloads"></a>
 </p>
 
 <p align="center">
   <i>致力于改善无政府服务器的游玩体验 / Dedicated to improving the anarchy server experience</i><br/>
-  <i>适用Grim反作弊 / Designed for Grim Anti-Cheat</i>
+  <i>适用 Grim 反作弊 / Designed for Grim Anti-Cheat</i>
 </p>
 
 ---
@@ -26,86 +26,184 @@
 
 ## 简体中文
 
-bilibili: https://space.bilibili.com/1932462042  
-神秘群聊欢迎吹水：  
-1群：1076456572  
-使用文档：https://leaveshack.netlify.app/
+LeavesHack 是面向 Meteor Client 的 Minecraft 1.21.11 客户端插件
 
-### 功能  
+### 环境要求
 
-截至目前更新的功能，基本上默认参数就能在3c使用：
+- Minecraft `1.21.11`
+- Java `21` 或更高版本
+- 从V2版本开始都是1.21.11，V1版本都是1.21.1
+- [Meteor Client](https://meteorclient.com)
+- 可选：[Litematica](https://modrinth.com/mod/litematica) 与 [MaLiLib](https://modrinth.com/mod/malilib)（Printer 使用）
 
-|        模块         | 描述                                    | 注意事项                                |
-|:-----------------:|---------------------------------------|-------------------------------------|
-|   AntiAntiXray    | 雷达扫描矿透                                | 不装 Baritone 开功能崩端                   |
-|       Aura        | 可在 3c3u 使用的不卡脚的杀戮                     | 无                                   |
-|    AutoAnchor     | 自动重生锚                                 | 无                                   |
-|   AutoArmorPlus   | 自动穿甲（主要为了和 FireworkElytraFly 联动自动穿鞘翅） | 无                                   |
-|     AutoCity      | 自动挖脚（顺手的事，记住咱是生存端）                    | 无                                   |
-|    AutoCrystal    | 自动水晶                                  | 无                                   |
-|     AutoLogin     | 自动登录                                  | 无                                   |
-|  AutoPlaceBlock   | 自定义范围方块放置                             | 无                                   |
-| AutoRefreshTrade  | 自动刷新村民交易的附魔书                          | 无                                   |
-|     AutoTorch     | 自动放火把 (白天可用 + 无光区域渲染)                 | 无                                   |
-|     AutoTree      | 自动种树                                  | 左键选择目标方块，手持树苗时工作                    |
-| FireworkElytraFly | 在鞘翅飞行时自动使用烟花 (含甲飞)                    | 无                                   |
-|    LegitNoFall    | 自动落地水                                 | 95% 的成功率，自动检测下界，不要在没有副手图腾的情况下信任这个模块 |
-|     NukerPlus     | 绕过 3c3u 的 Nuker                       | 无                                   |
-|    ModuleList     | 重写模块列表渲染                              | 无                                   |
-|    PacketMine     | 绕过 3c3u 的发包挖掘（可双挖）                    | 无                                   |
-|   PistonCrystal   | 活塞水晶                                  | 无                                   |
-|      Printer      | 投影打印机                                 | 测试中，不装投影开功能崩端                       |
-|   ScaffoldPlus    | 自动搭路 (可自适应半砖)                         | 放下半砖的时候不稳定，斜着走的时候慢一点不然容易坠机          |
+### 安装与构建
+
+1. 从 [Releases](https://github.com/MrBZBZ/LeavesHack/releases) 下载对应版本的 JAR。
+2. 将 JAR 放入 Minecraft 的 `mods` 文件夹，并同时安装对应版本的 Meteor Client。
+3. 启动游戏后，在 Meteor Client 的模块列表中查找 `LeavesCombat` 和 `LeavesMisc` 分类。
+
+本地构建：
+
+```powershell
+.\gradlew.bat build
+```
+
+构建产物位于 `build/libs/`。
+
+### 功能模块
+
+以下列表以当前源码中实际注册的模块为准。
+
+#### LeavesCombat
+
+| 模块 | 功能 |
+| --- | --- |
+| `Aura` | 杀戮光环 |
+| `AutoAnchor` | 自动重生锚 |
+| `AutoArmorPlus` | 自动穿甲与鞘翅切换 |
+| `AutoMine` | 自动挖掘 Burrow 和 Surround |
+| `AutoOffHand` | 自动副手 |
+| `AutoWeb` | 自动放置蛛网 |
+| `CrystalAuraPlus` | 水晶战斗辅助 |
+| `FireworkElytraFly` | 鞘翅烟花飞行 |
+| `Follower` | 自动追人 |
+| `GlassFiller` | 玻璃塞脚 |
+| `PacketMine+` | 数据包挖掘 |
+| `PushCrystal` | 推水晶 |
+| `SelfTrapPlus` | 黑曜石自围 |
+
+#### LeavesMisc
+
+| 模块 | 功能 |
+| --- | --- |
+| `AutoLogin` | 自动登录 |
+| `AutoPlaceBlock` | 自动铺方块 |
+| `AutoRefreshTrade` | 自动刷新交易附魔书 |
+| `AutoTorch` | 自动放火把 |
+| `AutoTree` | 自动树场 |
+| `BreakESP` | 挖掘进度显示 |
+| `DeathRender` | 死亡渲染 |
+| `FriendsManager` | 好友管理器 |
+| `GlobalSetting` | 全局设置 |
+| `ModuleList` | 模块列表渲染 |
+| `Nuker+` | 方块破坏 |
+| `PacketLogger` | 数据包记录 |
+| `PlaceRender` | 方块放置渲染 |
+| `Printer` | 投影打印机 |
+| `Replenish` | 自动补充物品 |
+| `Scaffold+` | 自动搭路 |
+| `SprintPlus` | 自动疾跑 |
+
+### 使用说明
+
+- `GlobalSetting` 提供中文界面、转头、放置/攻击挥手、Baritone 接管等全局选项。
+- `AutoLogin` 的账号数据由模块内的账号管理界面维护。
+- `Printer` 依赖 Litematica 与 MaLiLib；未安装依赖时不要启用该模块。
+- `FireworkElytraFly`、`ElytraGrimAccelerate` 和 `Scaffold+` 等模块涉及移动与飞行，具体效果取决于服务器和 Meteor Client 配置。
+
+### 链接
+
+- Bilibili：https://space.bilibili.com/1932462042
+- 使用文档：https://leaveshack.netlify.app/
+- 神秘群聊：`1076456572`
 
 ---
 
 ## English
 
-bilibili: https://space.bilibili.com/1932462042   
-Feel free to join the chat groups:  
-Group 1: `1076456572`<br />
-Documentation: https://leaveshack.netlify.app/
+LeavesHack is a Minecraft 1.21.11 client-side addon for Meteor Client.
 
-### Features
+### Requirements
 
-The features currently included are listed below. With default settings, most of them should work on 3c3u:
+- Minecraft `1.21.11`
+- Java `21` or newer
+- [Meteor Client](https://meteorclient.com)
+- Optional: [Litematica](https://modrinth.com/mod/litematica) and [MaLiLib](https://modrinth.com/mod/malilib) for `Printer`
 
-|      Module       | Description | Notes |
-|:-----------------:|-------------|-------|
-|   AntiAntiXray    | Radar ore scanner | Crashes without Baritone installed |
-|       Aura        | KillAura that doesn't clip feet on 3c3u | None |
-|    AutoAnchor     | Auto respawn anchor | None |
-|   AutoArmorPlus   | Auto armor equip (mainly for FireworkElytraFly synergy) | None |
-|     AutoCity      | Auto city break (survival client, remember) | None |
-|    AutoCrystal    | Auto crystal | None |
-|     AutoLogin     | Auto login | None |
-|  AutoPlaceBlock   | Custom range block placement | None |
-| AutoRefreshTrade  | Auto refresh villager enchanted books | None |
-|     AutoTorch     | Auto place torches (daytime usable + dark area rendering) | None |
-|     AutoTree      | Auto tree planting | Left-click target block, works when holding saplings |
-| FireworkElytraFly | Auto firework during elytra flight (includes armor fly) | None |
-|    LegitNoFall    | Auto MLG water bucket | 95% success rate, auto detects Nether. Do not trust without offhand totem |
-|     NukerPlus     | Nuker bypass for 3c3u | None |
-|    ModuleList     | Rewritten module list rendering | None |
-|    PacketMine     | Packet mine bypass for 3c3u (dual mine supported) | None |
-|   PistonCrystal   | Piston crystal | None |
-|      Printer      | Litematica printer | In testing, crashes without Litematica installed |
-|   ScaffoldPlus    | Auto scaffold (adaptive half slabs) | Unstable when placing half slabs, walk slower diagonally to avoid falling |
+### Installation and build
+
+1. Download the matching JAR from [Releases](https://github.com/MrBZBZ/LeavesHack/releases).
+2. Put the JAR in Minecraft's `mods` folder and install the matching Meteor Client version.
+3. After launching the game, find the modules under the `LeavesCombat` and `LeavesMisc` categories.
+
+Build locally:
+
+```powershell
+.\gradlew.bat build
+```
+
+The build output is written to `build/libs/`.
+
+### Modules
+
+The following list matches the modules registered by the current source.
+
+#### LeavesCombat
+
+| Module | Description |
+| --- | --- |
+| `Aura` | KillAura |
+| `AutoAnchor` | Automatic respawn-anchor combat |
+| `AutoArmorPlus` | Automatic armor and elytra switching |
+| `AutoMine` | Automatic Burrow and Surround mining |
+| `AutoOffHand` | Automatic offhand management |
+| `AutoWeb` | Automatic web placement |
+| `CrystalAuraPlus` | Crystal combat assistance |
+| `FireworkElytraFly` | Elytra firework flight |
+| `Follower` | Automatic player following |
+| `GlassFiller` | Glass foot trap |
+| `PacketMine+` | Packet mining |
+| `PushCrystal` | Crystal pushing |
+| `SelfTrapPlus` | Obsidian self-trap |
+
+#### LeavesMisc
+
+| Module | Description |
+| --- | --- |
+| `AutoLogin` | Automatic login |
+| `AutoPlaceBlock` | Automatic block placement |
+| `AutoRefreshTrade` | Automatic villager trade refresh |
+| `AutoTorch` | Automatic torch placement |
+| `AutoTree` | Automatic tree farm |
+| `BreakESP` | Mining progress display |
+| `DeathRender` | Death rendering |
+| `FriendsManager` | Friend manager |
+| `GlobalSetting` | Global settings |
+| `ModuleList` | Module list rendering |
+| `Nuker+` | Block breaking |
+| `PacketLogger` | Packet logging |
+| `PlaceRender` | Block placement rendering |
+| `Printer` | Litematica printer |
+| `Replenish` | Automatic item replenishment |
+| `Scaffold+` | Automatic scaffolding |
+| `SprintPlus` | Automatic sprinting |
+
+### Notes
+
+- `GlobalSetting` includes Chinese UI, rotation, swing, Baritone integration, and other global options.
+- `Printer` requires Litematica and MaLiLib. Do not enable it without those dependencies.
+- The behavior of movement and flight modules depends on the server and Meteor Client configuration.
+
+### Links
+
+- Bilibili: https://space.bilibili.com/1932462042
+- Documentation: https://leaveshack.netlify.app/
 
 ---
 
-## 致谢 / Credits
-
-致谢项目 / Projects:
+## Credits
 
 - [Meteor Client](https://github.com/MeteorDevelopment/meteor-client)
 - [Meteor-Addon-Template](https://github.com/MeteorDevelopment/meteor-addon-template)
 - [Meteor Translation Addon](https://github.com/Nippaku-Zanmu/meteor-translation-addon)
 - [Baritone](https://github.com/cabaletta/baritone)
 - [Epsilon](https://github.com/NekoyaHouse/Epsilon)
-- [AntiAntiXray](https://github.com/tokfrans03/AntiAntiXray)  
+- [AntiAntiXray](https://github.com/tokfrans03/AntiAntiXray)
 
-特别致谢 / Special Thanks:
+Special thanks:
+
 - L3MonKe
 - Chen Meng
 - matl
+
+
