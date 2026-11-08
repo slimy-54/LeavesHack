@@ -175,7 +175,7 @@ public class Replenish extends Module {
                     Holder<MobEffect> effectType = effect.getEffect();
                     effectType.unwrapKey().ifPresent(key -> {
                         if (!sb.isEmpty()) sb.append("+");
-                        sb.append(key.toString());
+                        sb.append(key.identifier().toString());
                     });
                 }
                 return sb.toString();
