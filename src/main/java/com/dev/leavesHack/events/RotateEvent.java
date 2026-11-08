@@ -11,20 +11,20 @@ public class RotateEvent extends Cancellable {
         this.pitch = pitch;
     }
 
-    public float getYaw() {
+    public float getYRot() {
         return this.yaw;
     }
 
-    public void setYaw(float yaw) {
+    public void setYRot(float yaw) {
         modified = true;
         setYawNoModify(yaw);
     }
 
-    public float getPitch() {
+    public float getXRot() {
         return this.pitch;
     }
 
-    public void setPitch(float pitch) {
+    public void setXRot(float pitch) {
         modified = true;
         setPitchNoModify(pitch);
     }
@@ -33,8 +33,8 @@ public class RotateEvent extends Cancellable {
         return modified;
     }
     public void setRotation(final float yaw, final float pitch) {
-        this.setYaw(yaw);
-        this.setPitch(pitch);
+        this.setYRot(yaw);
+        this.setXRot(pitch);
     }
 
     public void setYawNoModify(float yaw) {

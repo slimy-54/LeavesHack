@@ -13,10 +13,10 @@ import meteordevelopment.meteorclient.utils.render.NametagUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
 import org.joml.Vector3d;
 
 import java.text.DecimalFormat;
@@ -47,7 +47,7 @@ public class BreakESP extends Module {
         .build()
     );
     private final Setting<SettingColor> box = sgRender.add(new ColorSetting.Builder()
-        .name("Box")
+        .name("AABB")
         .description("主挖边框颜色")
         .defaultValue(new SettingColor(140, 142, 255, 255))
         .build()
@@ -130,11 +130,11 @@ public class BreakESP extends Module {
 
     @EventHandler
     private void onRender(Render3DEvent event) {
-        if (mc.world == null || mc.player == null) return;
+        if (mc.level == null || mc.player == null) return;
 
         for (BreakManager.BreakData data : BreakManager.INSTANCE.breakMap.values()) {
             if (data == null || data.getEntity() == null) continue;
-            PlayerEntity player = (PlayerEntity) data.getEntity();
+            Player player = (Player) data.getEntity();
 
             double p = getProgress(data);
             renderBox(event, data.pos, p,
@@ -145,7 +145,7 @@ public class BreakESP extends Module {
         if (!second.get()) return;
 
         for (BreakManager.BreakData data : BreakManager.INSTANCE.doubleMap.values()) {
-            if (data == null || data.getEntity() == null || mc.world.isAir(data.pos)) continue;
+            if (data == null || data.getEntity() == null || mc.level.isEmptyBlock(data.pos)) continue;
 
             BreakManager.BreakData single = BreakManager.INSTANCE.breakMap.get(data.getEntity().getId());
             if (single != null && single.pos.equals(data.pos)) continue;
@@ -156,12 +156,12 @@ public class BreakESP extends Module {
 
     @EventHandler
     private void onRender2D(Render2DEvent event) {
-        if (mc.world == null || mc.player == null) return;
+        if (mc.level == null || mc.player == null) return;
 
         for (BreakManager.BreakData data : BreakManager.INSTANCE.breakMap.values()) {
             if (data == null || data.getEntity() == null) continue;
 
-            PlayerEntity player = (PlayerEntity) data.getEntity();
+            Player player = (Player) data.getEntity();
             renderName(player.getName().getString(), data.pos, 0.15, nameColor.get());
             if (progress.get()) {
                 String text = data.failed
@@ -176,7 +176,7 @@ public class BreakESP extends Module {
         if (!second.get()) return;
 
         for (BreakManager.BreakData data : BreakManager.INSTANCE.doubleMap.values()) {
-            if (data == null || data.getEntity() == null || mc.world.isAir(data.pos)) continue;
+            if (data == null || data.getEntity() == null || mc.level.isEmptyBlock(data.pos)) continue;
 
             BreakManager.BreakData single = BreakManager.INSTANCE.breakMap.get(data.getEntity().getId());
             if (single != null && single.pos.equals(data.pos)) continue;
@@ -190,11 +190,11 @@ public class BreakESP extends Module {
         double time = Math.max(data.breakTime * damage.get(), 50);
         if (data.failed) return 1;
         if (data.complete) return 1;
-        return MathHelper.clamp(data.timer.getPassedTimeMs() / time, 0, 1);
+        return Mth.clamp(data.timer.getPassedTimeMs() / time, 0, 1);
     }
 
     private void renderBox(Render3DEvent event, BlockPos pos, double progress, SettingColor side, SettingColor line) {
-        Box box = new Box(pos);
+        AABB box = new AABB(pos);
         event.renderer.box(box, side, line, shapeMode.get(), 0);
     }
 

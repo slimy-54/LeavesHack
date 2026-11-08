@@ -3,12 +3,12 @@
   "id": "leaveshack",
   "version": "${version}",
   "name": "LeavesHack",
-  "description": "(1.21.11尝鲜版)致力于改善无政府服务器生存体验的MeteorClient插件 dev：Leaves_awa",
+  "description": "(26.1.2 port) 致力于改善无政府服务器生存体验的 MeteorClient 插件 dev：Leaves_awa",
   "authors": [
     "Leaves_awa"
   ],
   "contact": {
-    "sources": "https://github.com/MeteorDevelopment/meteor-addon-template"
+    "sources": "https://github.com/MrBZBZ/LeavesHack"
   },
   "icon": "assets/leaves/icon.png",
   "environment": "client",
@@ -29,9 +29,8 @@
     }
   },
   "depends": {
-    "java": ">=21",
-    "minecraft": ["${mc_version}"],
+    "java": ">=${jdk_version}",
+    "minecraft": "${mc_version}",
     "meteor-client": "*"
-  },
-  "accessWidener": "leaves.accesswidener"
+  }
 }

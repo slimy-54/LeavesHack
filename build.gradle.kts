@@ -1,9 +1,7 @@
 plugins {
     alias(libs.plugins.fabric.loom)
 }
-loom {
-    accessWidenerPath = file("src/main/resources/leaves.accesswidener")
-}
+
 base {
     archivesName = properties["archives_base_name"] as String
     version = libs.versions.mod.version.get()
@@ -11,6 +9,10 @@ base {
 }
 
 repositories {
+    maven {
+        name = "Aliyun Maven Central"
+        url = uri("https://maven.aliyun.com/repository/public")
+    }
     maven {
         name = "meteor-maven"
         url = uri("https://maven.meteordev.org/releases")
@@ -20,29 +22,48 @@ repositories {
         url = uri("https://maven.meteordev.org/snapshots")
     }
     maven {
-        name = "Modrinth"
-        url = uri("https://api.modrinth.com/maven")
+        name = "babbaj-repo"
+        url = uri("https://babbaj.github.io/maven/")
+    }
+    maven {
+        name = "masa-maven"
+        url = uri("https://masa.dy.fi/maven/sakura-ryoko/")
+    }
+    maven {
+        name = "fallenbreath-maven"
+        url = uri("https://maven.fallenbreath.me/releases")
     }
 }
 
 dependencies {
     // Fabric
     minecraft(libs.minecraft)
-    mappings(variantOf(libs.yarn) { classifier("v2") })
-    modImplementation(libs.fabric.loader)
+    implementation(libs.fabric.loader)
 
     // Meteor
-    modImplementation(libs.meteor.client)
-    // Litematica dependencies
-    modCompileOnly("maven.modrinth:malilib:0.27.10")
-    modCompileOnly("maven.modrinth:litematica:0.26.16")
+    implementation(libs.meteor.client)
+
+    // Litematica / MaLiLib are mojmap dev jars -> use implementation, not modImplementation.
+    implementation("fi.dy.masa.litematica:litematica-fabric-26.1.2:0.27.14")
+    implementation("fi.dy.masa.malilib:malilib-fabric-26.1.2:0.28.12")
+
+    // Required for @WrapOperation / @ModifyExpressionValue
+    include(implementation("io.github.llamalad7:mixinextras-fabric:0.5.5")!!)
+}
+
+java {
+    withSourcesJar()
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(libs.versions.jdk.get().toInt()))
+    }
 }
 
 tasks {
     processResources {
         val propertyMap = mapOf(
             "version" to project.version,
-            "mc_version" to libs.versions.minecraft.get()
+            "mc_version" to "~26.1",
+            "jdk_version" to libs.versions.jdk.get()
         )
 
         inputs.properties(propertyMap)
@@ -62,15 +83,16 @@ tasks {
         }
     }
 
-    java {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-    }
-
     withType<JavaCompile> {
         options.encoding = "UTF-8"
-        options.release = 21
-        options.compilerArgs.add("-Xlint:deprecation")
-        options.compilerArgs.add("-Xlint:unchecked")
+        options.release = libs.versions.jdk.get().toInt()
+        options.compilerArgs.addAll(
+            listOf(
+                "-Xlint:deprecation",
+                "-Xlint:unchecked",
+                "-Xmaxerrs",
+                "10000"
+            )
+        )
     }
 }

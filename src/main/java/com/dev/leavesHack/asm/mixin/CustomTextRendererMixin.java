@@ -8,7 +8,7 @@ import meteordevelopment.meteorclient.renderer.text.CustomTextRenderer;
 import meteordevelopment.meteorclient.renderer.text.FontFace;
 import meteordevelopment.meteorclient.renderer.text.TextRenderer;
 import meteordevelopment.meteorclient.utils.render.color.Color;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -27,7 +27,7 @@ public abstract class CustomTextRendererMixin implements TextRenderer {
 
     @Shadow
     @Final
-    private MeshBuilder mesh = new MeshBuilder(MeteorRenderPipelines.UI_TEXT);
+    private final MeshBuilder mesh = new MeshBuilder(MeteorRenderPipelines.UI_TEXT);
 
 
     private FontFix[] fonts_fix;
@@ -147,10 +147,10 @@ public abstract class CustomTextRendererMixin implements TextRenderer {
             mesh.end();
 
             MeshRenderer.begin()
-                .attachments(MinecraftClient.getInstance().getFramebuffer())
+                .attachments(Minecraft.getInstance().getMainRenderTarget())
                 .pipeline(MeteorRenderPipelines.UI_TEXT)
                 .mesh(mesh)
-                .sampler("u_Texture", font_fix.texture.getGlTextureView(), font_fix.texture.getSampler())
+                .sampler("u_Texture", font_fix.texture.getTextureView(), font_fix.texture.getSampler())
                 .end();
         }
 

@@ -1,7 +1,7 @@
 {
   "required": true,
   "package": "com.dev.leavesHack.asm",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "client": [
     "accessors.IClientWorld",
     "mixin.MixinClientPlayerEntity",
@@ -14,12 +14,11 @@
     "defaultRequire": 1
   },
   "mixins": [
+    "accessors.IFireworkRocket",
     "accessors.IFriend",
-    "accessors.ILivingEntity",
     "accessors.IModule",
     "accessors.IPlayerInterectItemC2SPacket",
     "accessors.IPlayerMoveC2SPacket",
-    "accessors.IVec3d",
     "accessors.SettingAccessor",
     "accessors.SettingGroupAccessor",
     "accessors.SystemsAccessor",

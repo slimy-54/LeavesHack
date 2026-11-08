@@ -10,13 +10,13 @@ import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.entity.DamageUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.core.Direction;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -110,14 +110,14 @@ public class AutoMine extends Module {
 
     @EventHandler
     public void onBreak(PacketEvent.Send event) {
-        if (event.packet instanceof PlayerActionC2SPacket packet) {
-            if (packet.getAction() == PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK) updateTimer.reset();
+        if (event.packet instanceof ServerboundPlayerActionPacket packet) {
+            if (packet.getAction() == ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK) updateTimer.reset();
         }
     }
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (mc.player == null || mc.world == null || PacketMine.INSTANCE == null || !PacketMine.INSTANCE.isActive()) return;
+        if (mc.player == null || mc.level == null || PacketMine.INSTANCE == null || !PacketMine.INSTANCE.isActive()) return;
         if (!updateTimer.passedMs(delay.get())) return;
         if (doubleBreak.get()) {
             if (waitingForEmpty) {
@@ -126,7 +126,7 @@ public class AutoMine extends Module {
                 return;
             }
         }
-        PlayerEntity enemy = CombatUtil.getClosestEnemy(targetRange.get());
+        Player enemy = CombatUtil.getClosestEnemy(targetRange.get());
         if (enemy == null) return;
         if (PacketMine.targetPos != null && !intersectPos(enemy, PacketMine.targetPos)) {
             if (!PacketMine.targetPos.equals(trackedTargetPos)) {
@@ -136,16 +136,16 @@ public class AutoMine extends Module {
             if (PacketMine.completed) {
                 if (ignoreTerrain.get()) {
                     CombatUtil.modifyPos = PacketMine.targetPos;
-                    CombatUtil.modifyBlockState = Blocks.AIR.getDefaultState();
+                    CombatUtil.modifyBlockState = Blocks.AIR.defaultBlockState();
                 }
-                double crystalDamage = DamageUtils.crystalDamage(enemy, PacketMine.targetPos.toCenterPos(), false, PacketMine.targetPos.down());
+                double crystalDamage = DamageUtils.crystalDamage(enemy, PacketMine.targetPos.getCenter(), false, PacketMine.targetPos.below());
 //                info("伤害：" + crystalDamage);
                 if (ignoreTerrain.get()) {
                     CombatUtil.modifyPos = null;
                 }
                 if (crystalDamage >= minCrystalDamage.get()) {
-                    if (!mc.world.isAir(PacketMine.targetPos)) targetAirTimer.reset();
-                    if (!mc.world.isAir(PacketMine.targetPos) || !targetAirTimer.passedMs(targetAirDelay.get() * 10)) return;
+                    if (!mc.level.isEmptyBlock(PacketMine.targetPos)) targetAirTimer.reset();
+                    if (!mc.level.isEmptyBlock(PacketMine.targetPos) || !targetAirTimer.passedMs(targetAirDelay.get() * 10)) return;
                 }
             }
         } else {
@@ -156,19 +156,19 @@ public class AutoMine extends Module {
         if (!doubleBreak.get() && PacketMine.secondPos != null) return;
 
         List<BlockPos> positions = new ArrayList<>();
-        BlockPos enemyPos = enemy.getBlockPos();
-        if (burrow.get() && mc.player.getEyePos().distanceTo(enemyPos.toCenterPos()) <= PacketMine.INSTANCE.range.get()
-                && (hard.contains(mc.world.getBlockState(enemyPos).getBlock()) || mc.world.getBlockState(enemyPos).getBlock() == Blocks.GLASS)
+        BlockPos enemyPos = enemy.blockPosition();
+        if (burrow.get() && mc.player.getEyePosition().distanceTo(enemyPos.getCenter()) <= PacketMine.INSTANCE.range.get()
+                && (hard.contains(mc.level.getBlockState(enemyPos).getBlock()) || mc.level.getBlockState(enemyPos).getBlock() == Blocks.GLASS)
                 && BlockUtil.getClickSideStrict(enemyPos) != null
                 && !enemyPos.equals(PacketMine.targetPos) && !enemyPos.equals(PacketMine.secondPos)) {
             positions.add(enemyPos);
         }
         if (surround.get()) {
-            for (Direction direction : Direction.Type.HORIZONTAL) {
-                BlockPos position = enemyPos.offset(direction);
+            for (Direction direction : Direction.Plane.HORIZONTAL) {
+                BlockPos position = enemyPos.relative(direction);
                 if (positions.contains(position)
-                        || mc.player.getEyePos().distanceTo(position.toCenterPos()) > PacketMine.INSTANCE.range.get()
-                        || (!hard.contains(mc.world.getBlockState(position).getBlock()) && mc.world.getBlockState(position).getBlock() != Blocks.GLASS)
+                        || mc.player.getEyePosition().distanceTo(position.getCenter()) > PacketMine.INSTANCE.range.get()
+                        || (!hard.contains(mc.level.getBlockState(position).getBlock()) && mc.level.getBlockState(position).getBlock() != Blocks.GLASS)
                         || BlockUtil.getClickSideStrict(position) == null
                         || position.equals(PacketMine.targetPos) || position.equals(PacketMine.secondPos)) {
                     continue;
@@ -181,7 +181,7 @@ public class AutoMine extends Module {
         BlockPos position = positions.contains(enemyPos)
                 ? enemyPos
                 : positions.stream()
-                .min(Comparator.comparingDouble(pos -> pos.getSquaredDistance(mc.player.getEyePos())))
+                .min(Comparator.comparingDouble(pos -> pos.getCenter().distanceToSqr(mc.player.getEyePosition())))
                 .orElse(null);
         PacketMine.INSTANCE.mine(position);
         updateTimer.reset();
@@ -189,8 +189,8 @@ public class AutoMine extends Module {
         targetAirTimer.reset();
         if (doubleBreak.get() && PacketMine.targetPos != null && PacketMine.secondPos != null) waitingForEmpty = true;
     }
-    public boolean intersectPos(PlayerEntity player, BlockPos pos) {
-        return player.getBoundingBox().intersects(new Box(pos));
+    public boolean intersectPos(Player player, BlockPos pos) {
+        return player.getBoundingBox().intersects(new AABB(pos));
     }
     public static final List<Block> hard = Arrays.asList(
         Blocks.OBSIDIAN, Blocks.ENDER_CHEST, Blocks.NETHERITE_BLOCK, Blocks.CRYING_OBSIDIAN, Blocks.RESPAWN_ANCHOR, Blocks.ANCIENT_DEBRIS, Blocks.ANVIL

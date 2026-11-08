@@ -6,14 +6,14 @@ import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.PotionContentsComponent;
-import net.minecraft.entity.effect.StatusEffect;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.item.*;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.registry.tag.ItemTags;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.item.*;
+import net.minecraft.core.Holder;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.inventory.ContainerInput;
 
 import java.util.List;
 
@@ -75,15 +75,15 @@ public class Replenish extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (mc.player == null || mc.world == null) {
+        if (mc.player == null || mc.level == null) {
             clearSnapshot();
             return;
         }
-        if (mc.player.isCreative() || mc.currentScreen != null) {
+        if (mc.player.isCreative() || mc.screen != null) {
             clearSnapshot();
             return;
         }
-        if (pauseWhileUsing.get() && mc.options.useKey.isPressed()) {
+        if (pauseWhileUsing.get() && mc.options.keyUse.isDown()) {
             pauseTimer.reset();
             return;
         }
@@ -91,7 +91,7 @@ public class Replenish extends Module {
         if (hasSnapshot) {
             for (int slot = 0; slot < HOTBAR_SIZE; slot++) {
                 if (shouldSkip(previousHotbar[slot])) continue;
-                ItemStack currentStack = mc.player.getInventory().getStack(slot);
+                ItemStack currentStack = mc.player.getInventory().getItem(slot);
                 if (previousHotbar[slot].getItem() != currentStack.getItem()) {
                     doReplenish(slot);
                 }
@@ -105,17 +105,17 @@ public class Replenish extends Module {
         if (noTools.get()) {
             if (stack.getItem() instanceof PotionItem) return noPotion.get();
             if (stack.getItem() instanceof AxeItem) return true;
-            if (stack.isIn(ItemTags.SWORDS)) return true;
+            if (stack.getItem().builtInRegistryHolder().is(ItemTags.SWORDS)) return true;
             if (stack.getItem() instanceof MaceItem) return true;
             if (stack.getItem() instanceof TridentItem) return true;
-            if (stack.isIn(ItemTags.PICKAXES)) return true;
+            if (stack.getItem().builtInRegistryHolder().is(ItemTags.PICKAXES)) return true;
         }
         return blackList.get().contains(stack.getItem());
     }
 
     private void saveSnapshot() {
         for (int slot = 0; slot < HOTBAR_SIZE; slot++) {
-            previousHotbar[slot] = mc.player.getInventory().getStack(slot).copy();
+            previousHotbar[slot] = mc.player.getInventory().getItem(slot).copy();
         }
         hasSnapshot = true;
     }
@@ -128,7 +128,7 @@ public class Replenish extends Module {
     }
 
     protected void doReplenish(int slot) {
-        int syncId = mc.player.currentScreenHandler.syncId;
+        int syncId = mc.player.containerMenu.containerId;
         int targetSlot = -1;
         Item item = previousHotbar[slot].getItem();
         if (item instanceof PotionItem) {
@@ -138,22 +138,22 @@ public class Replenish extends Module {
             targetSlot = findItemInventorySlot(item);
             if (targetSlot == -1) return;
         }
-        if (mc.player.getInventory().getStack(slot).isEmpty()) {
-            mc.interactionManager.clickSlot(syncId, targetSlot, slot, SlotActionType.SWAP, mc.player);
+        if (mc.player.getInventory().getItem(slot).isEmpty()) {
+            mc.gameMode.handleContainerInput(syncId, targetSlot, slot, ContainerInput.SWAP, mc.player);
         } else {
-            int currentCount = mc.player.getInventory().getStack(slot).getCount();
-            int invCount = mc.player.getInventory().getStack(targetSlot).getCount();
+            int currentCount = mc.player.getInventory().getItem(slot).getCount();
+            int invCount = mc.player.getInventory().getItem(targetSlot).getCount();
             if (currentCount + invCount > 64 || !previousHotbar[slot].isStackable()) {
-                mc.interactionManager.clickSlot(syncId, targetSlot, slot, SlotActionType.SWAP, mc.player);
+                mc.gameMode.handleContainerInput(syncId, targetSlot, slot, ContainerInput.SWAP, mc.player);
             } else {
-                mc.interactionManager.clickSlot(syncId, targetSlot, 0, SlotActionType.QUICK_MOVE, mc.player);
+                mc.gameMode.handleContainerInput(syncId, targetSlot, 0, ContainerInput.QUICK_MOVE, mc.player);
             }
         }
     }
 
     private int findPotionSlot(ItemStack stack) {
         for (int i = 9; i < 35; ++i) {
-            ItemStack currentStack = mc.player.getInventory().getStack(i);
+            ItemStack currentStack = mc.player.getInventory().getItem(i);
             if (getPotionId(currentStack).equals(getPotionId(stack))) return i;
         }
         return -1;
@@ -161,21 +161,21 @@ public class Replenish extends Module {
 
     public int findItemInventorySlot(Item item) {
         for (int i = 9; i < 35; ++i) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
+            ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.getItem() == item) return i;
         }
         return -1;
     }
     private String getPotionId(ItemStack stack) {
         if (stack.getItem() instanceof PotionItem) {
-            PotionContentsComponent potionContents = stack.get(DataComponentTypes.POTION_CONTENTS);
+            PotionContents potionContents = stack.get(DataComponents.POTION_CONTENTS);
             if (potionContents != null) {
                 StringBuilder sb = new StringBuilder();
-                for (StatusEffectInstance effect : potionContents.getEffects()) {
-                    RegistryEntry<StatusEffect> effectType = effect.getEffectType();
-                    effectType.getKey().ifPresent(key -> {
+                for (MobEffectInstance effect : potionContents.getAllEffects()) {
+                    Holder<MobEffect> effectType = effect.getEffect();
+                    effectType.unwrapKey().ifPresent(key -> {
                         if (!sb.isEmpty()) sb.append("+");
-                        sb.append(key.getValue().toString());
+                        sb.append(key.toString());
                     });
                 }
                 return sb.toString();

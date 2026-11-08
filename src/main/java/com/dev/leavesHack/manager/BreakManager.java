@@ -8,17 +8,17 @@ import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.world.ServerConnectBeginEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.AirBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.enchantment.Enchantments;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.AirBlockItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.s2c.play.BlockBreakingProgressS2CPacket;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.level.block.AirBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.AirItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.protocol.game.ClientboundBlockDestructionPacket;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,14 +50,14 @@ public class BreakManager {
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         if (detectDouble) {
             doubleMap.entrySet().removeIf(entry -> {
                 BreakData data = entry.getValue();
                 return data == null
                     || data.getEntity() == null
-                    || mc.world.isAir(data.pos)
+                    || mc.level.isEmptyBlock(data.pos)
                     || data.timer.passedMs(Math.max(minTimeout * 1000, data.breakTime * doubleMineTimeout));
             });
         }
@@ -68,7 +68,7 @@ public class BreakManager {
             if (unbreakable(data.pos)) {
                 data.complete = false;
                 data.failed = true;
-            } else if (mc.world.isAir(data.pos)) {
+            } else if (mc.level.isEmptyBlock(data.pos)) {
                 data.complete = true;
                 data.failed = false;
             } else if (!data.complete && data.timer.passedMs(data.breakTime * breakTimeout)) {
@@ -79,42 +79,42 @@ public class BreakManager {
 
     @EventHandler
     private void onPacket(PacketEvent.Receive event) {
-        if (mc.player == null || mc.world == null) return;
-        if (!(event.packet instanceof BlockBreakingProgressS2CPacket packet)) return;
+        if (mc.player == null || mc.level == null) return;
+        if (!(event.packet instanceof ClientboundBlockDestructionPacket packet)) return;
         if (packet.getPos() == null) return;
 
-        BreakData data = new BreakData(packet.getPos(), packet.getEntityId(), false);
+        BreakData data = new BreakData(packet.getPos(), packet.getId(), false);
         if (data.getEntity() == null) return;
 
-        if (MathHelper.sqrt((float) data.getEntity().getEyePos().squaredDistanceTo(packet.getPos().toCenterPos())) > 8) return;
+        if (Mth.sqrt((float) data.getEntity().getEyePosition().distanceToSqr(packet.getPos().getCenter())) > 8) return;
 
         if (detectDouble) {
             if (packet.getProgress() != 255) {
                 if (packet.getProgress() != 0) {
-                    BreakData doubleData = doubleMap.get(packet.getEntityId());
+                    BreakData doubleData = doubleMap.get(packet.getId());
                     if (doubleData != null) {
                         doubleData.pos = packet.getPos();
                         doubleData.timer.reset();
                     } else if (!unbreakable(packet.getPos())) {
-                        doubleMap.put(packet.getEntityId(), new BreakData(packet.getPos(), packet.getEntityId(), true));
+                        doubleMap.put(packet.getId(), new BreakData(packet.getPos(), packet.getId(), true));
                     }
                     return;
                 }
 
-                BreakData doubleData = doubleMap.get(packet.getEntityId());
+                BreakData doubleData = doubleMap.get(packet.getId());
                 if (doubleData != null && doubleData.pos.equals(packet.getPos()) && !doubleData.timer.passedS(150)) {
                     return;
                 }
             }
         }
 
-        BreakData current = breakMap.get(packet.getEntityId());
+        BreakData current = breakMap.get(packet.getId());
         if (current != null && !current.failed && current.pos.equals(packet.getPos())) return;
 
-        breakMap.put(packet.getEntityId(), data);
+        breakMap.put(packet.getId(), data);
 
-        if (detectDouble && !doubleMap.containsKey(packet.getEntityId()) && !unbreakable(packet.getPos())) {
-            doubleMap.put(packet.getEntityId(), new BreakData(packet.getPos(), packet.getEntityId(), true));
+        if (detectDouble && !doubleMap.containsKey(packet.getId()) && !unbreakable(packet.getPos())) {
+            doubleMap.put(packet.getId(), new BreakData(packet.getPos(), packet.getId(), true));
         }
     }
 
@@ -138,7 +138,7 @@ public class BreakManager {
     public List<BlockPos> getSecondaryBreakPositions() {
         List<BlockPos> positions = new ArrayList<>();
         for (BreakData data : doubleMap.values()) {
-            if (data == null || data.getEntity() == null || mc.world == null || mc.world.isAir(data.pos)) continue;
+            if (data == null || data.getEntity() == null || mc.level == null || mc.level.isEmptyBlock(data.pos)) continue;
             positions.add(data.pos);
         }
         return positions;
@@ -155,7 +155,7 @@ public class BreakManager {
 
         for (BreakData data : breakMap.values()) {
             if (data == null || data.getEntity() == null || data.failed) continue;
-            if (data.getEntity().getEyePos().distanceTo(pos.toCenterPos()) > 7) continue;
+            if (data.getEntity().getEyePosition().distanceTo(pos.getCenter()) > 7) continue;
             if (data.pos.equals(pos)) return true;
         }
 
@@ -163,9 +163,10 @@ public class BreakManager {
     }
 
     public static boolean unbreakable(BlockPos pos) {
-        if (mc.world == null) return false;
-        Block block = mc.world.getBlockState(pos).getBlock();
-        return !(block instanceof AirBlock) && (block.getHardness() == -1 || block.getHardness() == 100);
+        if (mc.level == null) return false;
+        BlockState state = mc.level.getBlockState(pos);
+        float hardness = state.getDestroySpeed(mc.level, pos);
+        return !(state.getBlock() instanceof AirBlock) && (hardness == -1 || hardness == 100);
     }
 
     public static double getBreakTime(BlockPos pos, boolean extraBreak) {
@@ -179,11 +180,11 @@ public class BreakManager {
         float fastest = 1.0f;
 
         for (int i = 0; i < 9; i++) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
-            if (stack.getItem() instanceof AirBlockItem) continue;
+            ItemStack stack = mc.player.getInventory().getItem(i);
+            if (stack.getItem() instanceof AirItem) continue;
 
             float digSpeed = InventoryUtil.getEnchantmentLevel(stack, Enchantments.EFFICIENCY);
-            float destroySpeed = stack.getMiningSpeedMultiplier(mc.world.getBlockState(pos));
+            float destroySpeed = stack.getDestroySpeed(mc.level.getBlockState(pos));
             if (digSpeed + destroySpeed > fastest) {
                 fastest = digSpeed + destroySpeed;
                 slot.set(i);
@@ -194,15 +195,15 @@ public class BreakManager {
     }
 
     private static double getBreakTime(BlockPos pos, int slot, double damage) {
-        return 1 / getBlockStrength(pos, mc.player.getInventory().getStack(slot)) / 20 * 1000 * damage;
+        return 1 / getBlockStrength(pos, mc.player.getInventory().getItem(slot)) / 20 * 1000 * damage;
     }
 
     private static float getBlockStrength(BlockPos pos, ItemStack stack) {
-        BlockState state = mc.world.getBlockState(pos);
-        float hardness = state.getHardness(mc.world, pos);
+        BlockState state = mc.level.getBlockState(pos);
+        float hardness = state.getDestroySpeed(mc.level, pos);
         if (hardness < 0) return 0;
 
-        float base = !state.isToolRequired() || stack.isSuitableFor(state) ? 30 : 100;
+        float base = !state.requiresCorrectToolForDrops() || stack.isCorrectToolForDrops(state) ? 30 : 100;
         return getDigSpeed(state, stack) / hardness / base;
     }
 
@@ -220,7 +221,7 @@ public class BreakManager {
     private static float getDestroySpeed(BlockState state, ItemStack stack) {
         float speed = 1;
         if (stack != null && !stack.isEmpty()) {
-            speed *= stack.getMiningSpeedMultiplier(state);
+            speed *= stack.getDestroySpeed(state);
         }
         return speed;
     }
@@ -241,9 +242,9 @@ public class BreakManager {
         }
 
         public Entity getEntity() {
-            if (mc.world == null) return null;
-            Entity entity = mc.world.getEntityById(entityId);
-            return entity instanceof PlayerEntity ? entity : null;
+            if (mc.level == null) return null;
+            Entity entity = mc.level.getEntity(entityId);
+            return entity instanceof Player ? entity : null;
         }
     }
 }

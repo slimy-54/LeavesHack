@@ -3,67 +3,61 @@ package com.dev.leavesHack.asm.mixin;
 import com.dev.leavesHack.events.MoveEvent;
 import com.dev.leavesHack.utils.rotation.Rotation;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.authlib.GameProfile;
 import meteordevelopment.meteorclient.MeteorClient;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.MovementType;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
-import net.minecraft.util.math.Vec3d;
-import org.spongepowered.asm.mixin.Final;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(ClientPlayerEntity.class)
-public abstract class MixinClientPlayerEntity extends AbstractClientPlayerEntity {
-    @Final
-    @Shadow
-    public ClientPlayNetworkHandler networkHandler;
-    public MixinClientPlayerEntity(ClientWorld world, GameProfile profile) {
+@Mixin(LocalPlayer.class)
+public abstract class MixinClientPlayerEntity extends AbstractClientPlayer {
+    public MixinClientPlayerEntity(ClientLevel world, GameProfile profile) {
         super(world, profile);
     }
-    @Inject(method = "sendMovementPackets", at = {@At("HEAD")})
-    private void sendMovementPacketsHook(CallbackInfo ci) {
-        Rotation.rotationYaw = this.getYaw();
-        Rotation.rotationPitch = this.getPitch();
+
+    @Inject(method = "sendPosition", at = {@At("HEAD")})
+    private void sendPositionHook(CallbackInfo ci) {
+        Rotation.rotationYaw = this.getYRot();
+        Rotation.rotationPitch = this.getXRot();
     }
-    @Inject(method = "sendMovementPackets", at = {@At("TAIL")})
-    private void sendMovementPacketsHook2(CallbackInfo ci) {
+
+    @Inject(method = "sendPosition", at = {@At("TAIL")})
+    private void sendPositionHook2(CallbackInfo ci) {
         Rotation.rotation = false;
-    }
-    @ModifyExpressionValue(
-            method = "sendMovementPackets",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getYaw()F")
-    )
-    private float hookYaw(float original) {
-        if (Rotation.rotation) {
-            return Rotation.targetYaw;
-        }
-        return original;
     }
 
     @ModifyExpressionValue(
-            method = "sendMovementPackets",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getPitch()F")
+            method = "sendPosition",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;getYRot()F")
+    )
+    private float hookYaw(float original) {
+        return Rotation.rotation ? Rotation.targetYaw : original;
+    }
+
+    @ModifyExpressionValue(
+            method = "sendPosition",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;getXRot()F")
     )
     private float hookPitch(float original) {
-        if (Rotation.rotation) {
-            return Rotation.targetPitch;
-        }
-        return original;
+        return Rotation.rotation ? Rotation.targetPitch : original;
     }
-    @Inject(method = "move", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/AbstractClientPlayerEntity;move(Lnet/minecraft/entity/MovementType;Lnet/minecraft/util/math/Vec3d;)V"), cancellable = true)
-    public void onMoveHook(MovementType movementType, Vec3d movement, CallbackInfo ci) {
+
+    @WrapOperation(
+            method = "move",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/AbstractClientPlayer;move(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V")
+    )
+    private void onMoveHook(LocalPlayer instance, MoverType movementType, Vec3 movement, Operation<Void> original) {
         MoveEvent event = new MoveEvent(movement.x, movement.y, movement.z);
         MeteorClient.EVENT_BUS.post(event);
-        ci.cancel();
-        if (!event.isCancelled()) {
-            super.move(movementType, new Vec3d(event.getX(), event.getY(), event.getZ()));
-        }
+        if (event.isCancelled()) return;
+        original.call(instance, movementType, new Vec3(event.getX(), event.getY(), event.getZ()));
     }
 }

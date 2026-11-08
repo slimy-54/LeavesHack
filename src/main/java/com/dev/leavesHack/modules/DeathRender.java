@@ -8,11 +8,11 @@ import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LightningEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LightningBolt;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
 
 public class DeathRender extends Module {
     public static DeathRender INSTANCE;
@@ -31,14 +31,14 @@ public class DeathRender extends Module {
     );
     @EventHandler
     public void onPacket(PacketEvent.Receive event) {
-        if (!(event.packet instanceof EntityStatusS2CPacket packet)) return;
-        if (packet.getStatus() != 3) return;
-        Entity entity = packet.getEntity(mc.world);
-        if (!(entity instanceof PlayerEntity death)) return;
+        if (!(event.packet instanceof ClientboundEntityEventPacket packet)) return;
+        if (packet.getEventId() != 3) return;
+        Entity entity = packet.getEntity(mc.level);
+        if (!(entity instanceof Player death)) return;
         if (death == mc.player) return;
         if (!PlayerUtils.isWithin(death, range.get())) return;
-        LightningEntity lightning = new LightningEntity(EntityType.LIGHTNING_BOLT, mc.world);
-        lightning.setPosition(death.getX(), death.getY(), death.getZ());
-        mc.world.addEntity(lightning);
+        LightningBolt lightning = new LightningBolt(EntityType.LIGHTNING_BOLT, mc.level);
+        lightning.setPos(death.getX(), death.getY(), death.getZ());
+        mc.level.addEntity(lightning);
     }
 }

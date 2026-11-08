@@ -15,25 +15,25 @@ public class MovementPacketsEvent extends Cancellable {
         this.ground = ground;
     }
 
-    public float getYaw() {
+    public float getYRot() {
         return this.yaw;
     }
 
-    public void setYaw(float yaw) {
+    public void setYRot(float yaw) {
         this.yaw = yaw;
     }
 
-    public float getPitch() {
+    public float getXRot() {
         return this.pitch;
     }
 
-    public void setPitch(float pitch) {
+    public void setXRot(float pitch) {
         this.pitch = pitch;
     }
 
     public void setRotation(final float yaw, final float pitch) {
-        this.setYaw(yaw);
-        this.setPitch(pitch);
+        this.setYRot(yaw);
+        this.setXRot(pitch);
     }
 
     public boolean isGround() {

@@ -15,9 +15,9 @@ import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.network.packet.c2s.play.PlayerInputC2SPacket;
-import net.minecraft.text.Text;
-import net.minecraft.util.PlayerInput;
+import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Input;
 
 import java.util.TimerTask;
 
@@ -29,10 +29,10 @@ public class ModuleManager {
         MeteorClient.EVENT_BUS.subscribe(this);
     }
     public boolean chinese = false;
-    public PlayerInput lastInput = null;
+    public Input lastInput = null;
     @EventHandler
     public void onPacketSend(PacketEvent.Send event) {
-        if (event.packet instanceof PlayerInputC2SPacket packet) {
+        if (event.packet instanceof ServerboundPlayerInputPacket packet) {
             if (GlobalSetting.INSTANCE.noBadPackets.get() && packet.input().equals(lastInput)) {
                 event.cancel();
             }
@@ -89,7 +89,7 @@ public class ModuleManager {
     }
     private void refreshGui(boolean finalOpen) {
         if (finalOpen) {
-            mc.currentScreen.close();
+            mc.setScreen(null);
             long delay = 0;
             java.util.Timer timer = new java.util.Timer();
             timer.schedule(new TimerTask() {
@@ -101,7 +101,7 @@ public class ModuleManager {
                             @Override
                             public void run() {
                                 mc.execute(() -> {
-                                    mc.currentScreen.close();
+                                    mc.setScreen(null);
                                     timer.schedule(new TimerTask() {
                                         @Override
                                         public void run() {
@@ -127,7 +127,7 @@ public class ModuleManager {
                 @Override
                 public void run() {
                     mc.execute(() -> {
-                        mc.currentScreen.close();
+                        mc.setScreen(null);
                         timer.schedule(new TimerTask() {
                             @Override
                             public void run() {
@@ -137,7 +137,7 @@ public class ModuleManager {
                                         @Override
                                         public void run() {
                                             mc.execute(() -> {
-                                                mc.currentScreen.close();
+                                                mc.setScreen(null);
                                             });
                                             timer.cancel();
                                         }

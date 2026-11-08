@@ -3,13 +3,13 @@ package com.dev.leavesHack.asm.mixin;
 import com.dev.leavesHack.modules.GlobalSetting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import net.minecraft.network.handler.DecoderHandler;
-import net.minecraft.network.handler.NetworkStateTransitionHandler;
-import net.minecraft.network.listener.PacketListener;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.PacketType;
-import net.minecraft.network.state.NetworkState;
-import net.minecraft.util.profiling.jfr.FlightProfiler;
+import net.minecraft.network.PacketDecoder;
+import net.minecraft.network.ProtocolInfo;
+import net.minecraft.network.ProtocolSwapHandler;
+import net.minecraft.network.PacketListener;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.PacketType;
+import net.minecraft.util.profiling.jfr.JvmProfiler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,9 +18,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
-@Mixin(DecoderHandler.class)
+@Mixin(PacketDecoder.class)
 public class MixinDecoderHandler<T extends PacketListener> {
-    @Shadow private NetworkState<T> state;
+    @Shadow
+    private ProtocolInfo<T> protocolInfo;
 
     @Inject(method = "decode", at = @At("HEAD"), cancellable = true)
     private void safeDecode(ChannelHandlerContext context, ByteBuf buf, List<Object> objects, CallbackInfo ci) throws Exception {
@@ -30,14 +31,14 @@ public class MixinDecoderHandler<T extends PacketListener> {
         if (i == 0) return;
 
         try {
-            Packet<? super T> packet = this.state.codec().decode(buf);
-            PacketType<? extends Packet<? super T>> packetType = packet.getPacketType();
-            FlightProfiler.INSTANCE.onPacketReceived(this.state.id(), packetType, context.channel().remoteAddress(), i);
+            Packet<? super T> packet = this.protocolInfo.codec().decode(buf);
+            PacketType<? extends Packet<? super T>> packetType = packet.type();
+            JvmProfiler.INSTANCE.onPacketReceived(this.protocolInfo.id(), packetType, context.channel().remoteAddress(), i);
             if (buf.readableBytes() > 0) {
                 buf.skipBytes(buf.readableBytes());
             } else {
                 objects.add(packet);
-                NetworkStateTransitionHandler.onDecoded(context, packet);
+                ProtocolSwapHandler.handleInboundTerminalPacket(context, packet);
             }
             ci.cancel();
         } catch (Exception e) {

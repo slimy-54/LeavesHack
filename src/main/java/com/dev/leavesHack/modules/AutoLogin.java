@@ -16,8 +16,8 @@ import meteordevelopment.meteorclient.gui.widgets.pressable.WMinus;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.network.packet.c2s.play.CommandExecutionC2SPacket;
-import net.minecraft.text.Text;
+import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
@@ -64,9 +64,9 @@ public class AutoLogin extends Module {
         @EventHandler
         private void onGameJoined(ServerConnectBeginEvent event) {
             check = false;
-            lastIp = event.address.getAddress();
+            lastIp = event.address.getHost();
             for (AutoLoginAccount account : accounts()) {
-                if (account.username.get().equals(mc.getSession().getUsername()) && account.serverIp.get().equals(event.address.getAddress())) {
+                if (account.username.get().equals(mc.getUser().getName()) && account.serverIp.get().equals(event.address.getHost())) {
                     check = true;
                     pw = account.password.get();
                 }
@@ -75,13 +75,13 @@ public class AutoLogin extends Module {
     }
     @EventHandler
     public void onMessageSend(PacketEvent.Send event) {
-        if (event.packet instanceof CommandExecutionC2SPacket packet && autoSave.get()) {
+        if (event.packet instanceof ServerboundChatCommandPacket packet && autoSave.get()) {
             String message = packet.command();
             String[] args = message.split(" ");
             if (args.length < 2) return;
             if (args[0].equals(loginCommand.get()) || args[0].equals(registerCommand.get()) || args[0].equals(cpCommand.get())) {
                 String password = args[0].equals(cpCommand.get()) ? args[2] : args[1];
-                String username = mc.getSession().getUsername();
+                String username = mc.getUser().getName();
                 String server = lastIp;
                 for (AutoLoginAccount account : accounts()) {
                     if (account.username.get().equals(username)
@@ -102,7 +102,7 @@ public class AutoLogin extends Module {
     @EventHandler
     private void onTick(TickEvent.Pre event) {
         if (check) {
-            mc.getNetworkHandler().sendPacket(new CommandExecutionC2SPacket(loginCommand.get() + " " + pw));
+            mc.getConnection().send(new ServerboundChatCommandPacket(loginCommand.get() + " " + pw));
             check = false;
         }
     }
@@ -143,7 +143,7 @@ public class AutoLogin extends Module {
         public EditAccountScreen(GuiTheme theme, AutoLoginAccount value, Runnable reload) {
             super(theme, value, reload);
             if (value == null) {
-                this.value.username.set(mc.getSession().getUsername());
+                this.value.username.set(mc.getUser().getName());
                 this.value.serverIp.set(lastIp);
             }
         }

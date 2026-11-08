@@ -12,6 +12,7 @@ import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
+import net.minecraft.world.effect.MobEffects;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
 
@@ -53,7 +54,7 @@ public class SprintPlus extends Module {
 
     @EventHandler(priority = EventPriority.HIGH)
     private void onTickMovement(TickEvent.Post event) {
-        if (unsprintInWater.get() && mc.player.isTouchingWater()) return;
+        if (unsprintInWater.get() && mc.player.isInWater()) return;
         mc.player.setSprinting(shouldSprint());
     }
 
@@ -61,17 +62,17 @@ public class SprintPlus extends Module {
     public boolean shouldSprint() {
         if (FireworkElytraFly.INSTANCE.isActive()) return false;
         float movement = mode.get() == Mode.Rage
-            ? (Math.abs(mc.player.forwardSpeed) + Math.abs(mc.player.sidewaysSpeed))
-            : mc.player.forwardSpeed;
+            ? (Math.abs(mc.player.input.getMoveVector().y) + Math.abs(mc.player.input.getMoveVector().x))
+            : mc.player.input.getMoveVector().y;
 
-        if (movement <= (mc.player.isSubmergedInWater() ? 1.0E-5F : 0.8)) {
+        if (movement <= (mc.player.isUnderWater() ? 1.0E-5F : 0.8)) {
             if (mode.get() == Mode.Rage && !permaSprint.get()) return false;
         }
 
-        boolean strictSprint = !(mc.player.isPartlyTouchingWater())
-            && !mc.player.hasBlindnessEffect()
-            && mc.player.hasVehicle() ? (mc.player.getVehicle().canSprintAsVehicle() && mc.player.getVehicle().isLogicalSideForUpdatingMovement()) : mc.player.getHungerManager().canSprint()
-            && (!mc.player.horizontalCollision || mc.player.collidedSoftly);
+        boolean strictSprint = !(mc.player.isInWater())
+            && !mc.player.hasEffect(MobEffects.BLINDNESS)
+            && (mc.player.isPassenger() || mc.player.canSprint())
+            && (!mc.player.horizontalCollision || mc.player.minorHorizontalCollision);
 
         return isActive() && (mode.get() == Mode.Rage || strictSprint);
     }

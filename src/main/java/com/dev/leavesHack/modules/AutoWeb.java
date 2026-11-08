@@ -14,14 +14,14 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.Blocks;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Items;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 
 public class AutoWeb extends Module {
     public static AutoWeb INSTANCE;
@@ -162,7 +162,7 @@ public class AutoWeb extends Module {
 
     // State
     private final Timer placeTimer = new Timer();
-    private PlayerEntity target;
+    private Player target;
     public BlockPos webPos;
 
     private static class RenderPos {
@@ -192,7 +192,7 @@ public class AutoWeb extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         target = CombatUtil.getClosestEnemy(targetRange.get());
         if (target == null) {
             webPos = null;
@@ -210,7 +210,7 @@ public class AutoWeb extends Module {
         if (skipWebbed.get() && isWebbed(target, webPos) ) {
             return;
         }
-        if (!PlayerUtils.isWithin(webPos.toCenterPos(), placeRange.get())) {
+        if (!PlayerUtils.isWithin(webPos.getCenter(), placeRange.get())) {
             webPos = null;
             return;
         }
@@ -220,21 +220,21 @@ public class AutoWeb extends Module {
         }
     }
 
-    private BlockPos getWebPos(PlayerEntity target) {
-        Vec3d targetPos;
+    private BlockPos getWebPos(Player target) {
+        Vec3 targetPos;
 
         if (predict.get() && predictTicks.get() > 0) {
             int ticks = predictTicks.get();
-            double dx = target.getX() - target.lastX;
-            double dy = target.getY() - target.lastY;
-            double dz = target.getZ() - target.lastZ;
-            targetPos = new Vec3d(
+            double dx = target.getX() - target.xo;
+            double dy = target.getY() - target.yo;
+            double dz = target.getZ() - target.zo;
+            targetPos = new Vec3(
                 target.getX() + dx * ticks,
                 target.getY() + dy * ticks,
                 target.getZ() + dz * ticks
             );
         } else {
-            targetPos = target.getEntityPos();
+            targetPos = target.position();
         }
 
         return switch (placeMode.get()) {
@@ -244,17 +244,17 @@ public class AutoWeb extends Module {
         };
     }
 
-    private boolean isWebbed(PlayerEntity target, BlockPos pos) {
-        return mc.world.getBlockState(pos).getBlock() == Blocks.COBWEB;
+    private boolean isWebbed(Player target, BlockPos pos) {
+        return mc.level.getBlockState(pos).getBlock() == Blocks.COBWEB;
     }
 
     private void placeWeb(BlockPos pos, int slot) {
         Direction side = BlockUtil.getPlaceSide(pos, null);
-        if (side == null || !mc.world.isAir(pos)) return;
+        if (side == null || !mc.level.isEmptyBlock(pos)) return;
         int old = mc.player.getInventory().getSelectedSlot();
         doSwap(slot);
         if (rotate.get()) {
-            Rotation.snapAt(pos.toCenterPos());
+            Rotation.snapAt(pos.getCenter());
         }
         BlockUtil.placeBlock(pos, side, rotate.get());
         if (rotate.get()) {
@@ -293,7 +293,7 @@ public class AutoWeb extends Module {
         renderPos.y += (webPos.getY() - renderPos.y) * renderSpeed.get();
         renderPos.z += (webPos.getZ() - renderPos.z) * renderSpeed.get();
 
-        Box box = new Box(
+        AABB box = new AABB(
             renderPos.x,
             renderPos.y,
             renderPos.z,
@@ -317,6 +317,6 @@ public class AutoWeb extends Module {
         Body
     }
     public boolean checkPause(boolean onlyMain) {
-        return mc.options.useKey.isPressed() && (!onlyMain || mc.player.getActiveHand() == Hand.MAIN_HAND);
+        return mc.options.keyUse.isDown() && (!onlyMain || mc.player.getUsedItemHand() == InteractionHand.MAIN_HAND);
     }
 }

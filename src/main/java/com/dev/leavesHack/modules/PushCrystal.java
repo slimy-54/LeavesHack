@@ -16,14 +16,18 @@ import meteordevelopment.meteorclient.utils.entity.EntityUtils;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.*;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.Items;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.level.block.*;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import net.minecraft.world.level.block.piston.PistonHeadBlock;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import java.util.*;
 
@@ -178,8 +182,8 @@ public class PushCrystal extends LeavesModule {
         .build()
     );
 
-    private PlayerEntity target;
-    private PlayerEntity lastTarget;
+    private Player target;
+    private Player lastTarget;
     private BlockPos lastBestPos;
     private CrystalPushPlan currentPlan;
     private BlockPos pendingBreakPos;
@@ -224,14 +228,14 @@ public class PushCrystal extends LeavesModule {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         if (preferCrystal.get() && CrystalAuraPlus.INSTANCE.renderCrystalPos != null) return;
         if (mine.get() && lastPiston != null && lastPistonDirection != null) {
-            if (BlockUtil.getBlock(lastPiston) instanceof PistonBlock
-                && BlockUtil.getBlock(lastPiston.offset(lastPistonDirection)) instanceof PistonHeadBlock) {
+            if (BlockUtil.getBlock(lastPiston) instanceof PistonBaseBlock
+                && BlockUtil.getBlock(lastPiston.relative(lastPistonDirection)) instanceof PistonHeadBlock) {
                 Direction side = BlockUtil.getClickSide(lastPiston);
                 if (side != null) {
-                    mc.interactionManager.attackBlock(lastPiston, side);
+                    mc.gameMode.startDestroyBlock(lastPiston, side);
                     lastPiston = null;
                     lastPistonDirection = null;
                 }
@@ -268,9 +272,9 @@ public class PushCrystal extends LeavesModule {
             actionCooldown--;
             return;
         }
-        if (pauseWhileUsing.get() && (mc.player.isUsingItem() || mc.options.useKey.isPressed())) return;
+        if (pauseWhileUsing.get() && (mc.player.isUsingItem() || mc.options.keyUse.isDown())) return;
         int crystalSlot = findItem(Items.END_CRYSTAL);
-        int pistonSlot = findClass(PistonBlock.class);
+        int pistonSlot = findClass(PistonBaseBlock.class);
         int redstoneSlot = findItem(Items.REDSTONE_BLOCK);
         if (crystalSlot == -1 || pistonSlot == -1 || redstoneSlot == -1) return;
         CrystalPushPlan plan = findPlan(target);
@@ -296,7 +300,7 @@ public class PushCrystal extends LeavesModule {
         }
     }
 
-    private CrystalPushPlan findPlan(PlayerEntity target) {
+    private CrystalPushPlan findPlan(Player target) {
         List<FinalCandidate> candidates = findFinalCandidates(target);
         if (candidates.isEmpty()) {
             lastBestPos = null;
@@ -318,8 +322,8 @@ public class PushCrystal extends LeavesModule {
         for (FinalCandidate candidate : candidates) {
             BlockPos pos1 = candidate.pos();
             for (Direction direction : HORIZONTAL_DIRECTIONS) {
-                if (!yawDeceive.get() && direction != mc.player.getHorizontalFacing()) continue;
-                BlockPos pos2 = pos1.offset(direction);
+                if (!yawDeceive.get() && direction != mc.player.getDirection()) continue;
+                BlockPos pos2 = pos1.relative(direction);
                 if (!BlockUtil.canPlaceCrystal(pos2) && !BlockUtil.hasCrystal(pos2)) continue;
 
                 Direction face1 = direction.getOpposite();
@@ -352,12 +356,12 @@ public class PushCrystal extends LeavesModule {
         return null;
     }
 
-    private List<FinalCandidate> findFinalCandidates(PlayerEntity target) {
+    private List<FinalCandidate> findFinalCandidates(Player target) {
         List<FinalCandidate> candidates = new ArrayList<>();
         for (BlockPos candidate : BlockUtil.getSphere(searchRange.get())) {
             boolean hasPlaceablePos2 = false;
             for (Direction direction : HORIZONTAL_DIRECTIONS) {
-                BlockPos pos2 = candidate.offset(direction);
+                BlockPos pos2 = candidate.relative(direction);
                 if (BlockUtil.canPlaceCrystal(pos2) || BlockUtil.hasCrystal(pos2)) {
                     hasPlaceablePos2 = true;
                     break;
@@ -365,7 +369,7 @@ public class PushCrystal extends LeavesModule {
             }
             if (!hasPlaceablePos2) continue;
 
-            Vec3d explosion = crystalVector(candidate);
+            Vec3 explosion = crystalVector(candidate);
             float damage = DamageUtils.crystalDamage(target, explosion);
             float selfDamage = DamageUtils.crystalDamage(mc.player, explosion);
             if (!Float.isFinite(damage) || !Float.isFinite(selfDamage)) continue;
@@ -373,10 +377,10 @@ public class PushCrystal extends LeavesModule {
             if (noSuicide.get() && selfDamage > EntityUtils.getTotalHealth(mc.player)) continue;
 
             candidates.add(new FinalCandidate(
-                candidate.toImmutable(),
+                candidate.immutable(),
                 damage,
                 selfDamage,
-                mc.player.getEyePos().squaredDistanceTo(explosion)
+                mc.player.getEyePosition().distanceToSqr(explosion)
             ));
         }
         candidates.sort((a, b) -> {
@@ -398,12 +402,12 @@ public class PushCrystal extends LeavesModule {
     }
 
     private List<BlockPos> getPistonCandidates(BlockPos pos2, Direction face1) {
-        BlockPos plane = pos2.offset(face1.getOpposite());
-        Direction horizontal = face1.rotateYClockwise();
+        BlockPos plane = pos2.relative(face1.getOpposite());
+        Direction horizontal = face1.getClockWise();
         List<BlockPos> candidates = new ArrayList<>(6);
         for (int y = 0; y <= 1; y++) {
             for (int lateral = -1; lateral <= 1; lateral++) {
-                candidates.add(plane.up(y).offset(horizontal, lateral));
+                candidates.add(plane.above(y).relative(horizontal, lateral));
             }
         }
         return candidates;
@@ -414,7 +418,7 @@ public class PushCrystal extends LeavesModule {
         lastPiston = null;
         lastPistonDirection = null;
         for (Placement placement : plan.placements()) {
-            BlockState state = mc.world.getBlockState(placement.pos());
+            BlockState state = mc.level.getBlockState(placement.pos());
             if (isExpectedBlock(state, placement)) {
                 // 世界中已有同朝向活塞或红石块时，不重复放置，但仍加入虚拟状态。
                 planned.add(placement.pos());
@@ -435,7 +439,7 @@ public class PushCrystal extends LeavesModule {
         }
         if (lastPiston == null) {
             for (BlockPos candidate : getPistonCandidates(plan.pos2(), plan.face1())) {
-                if (BlockUtil.getBlock(candidate) instanceof PistonBlock) {
+                if (BlockUtil.getBlock(candidate) instanceof PistonBaseBlock) {
                     lastPiston = candidate;
                     lastPistonDirection = plan.face1();
                     break;
@@ -454,10 +458,10 @@ public class PushCrystal extends LeavesModule {
         int oldSlot = mc.player.getInventory().getSelectedSlot();
         swap(slot, oldSlot);
         if (rotate.get()) {
-            Rotation.snapAt(placement.pos().toCenterPos().add(new Vec3d(
-                side.getVector().getX() * 0.5,
-                side.getVector().getY() * 0.5,
-                side.getVector().getZ() * 0.5
+            Rotation.snapAt(placement.pos().getCenter().add(new Vec3(
+                side.getUnitVec3i().getX() * 0.5,
+                side.getUnitVec3i().getY() * 0.5,
+                side.getUnitVec3i().getZ() * 0.5
             )));
             if (placement.kind() == BlockKind.PISTON && yawDeceive.get()) {
                 pistonFacing(placement.facing().getOpposite());
@@ -480,12 +484,12 @@ public class PushCrystal extends LeavesModule {
         }
     }
     private boolean placeCrystal(BlockPos pos, int slot) {
-        Direction side = BlockUtil.getClickSide(pos.down());
+        Direction side = BlockUtil.getClickSide(pos.below());
         if (side == null || slot == -1) return false;
 
         int oldSlot = mc.player.getInventory().getSelectedSlot();
         swap(slot, oldSlot);
-        BlockUtil.clickBlock(pos.down(), side, rotate.get());
+        BlockUtil.clickBlock(pos.below(), side, rotate.get());
         swapBack(slot, oldSlot);
         return true;
     }
@@ -501,22 +505,22 @@ public class PushCrystal extends LeavesModule {
     }
 
     private boolean isWithinPlaceRange(CrystalPushPlan plan) {
-        if (!PlayerUtils.isWithin(plan.pos2().toCenterPos(), placeRange.get())) return false;
+        if (!PlayerUtils.isWithin(plan.pos2().getCenter(), placeRange.get())) return false;
         for (Placement placement : plan.placements()) {
-            if (!PlayerUtils.isWithin(placement.pos().toCenterPos(), placeRange.get())) return false;
+            if (!PlayerUtils.isWithin(placement.pos().getCenter(), placeRange.get())) return false;
         }
         return true;
     }
 
     private boolean isExpectedBlock(BlockState state, Placement placement) {
         return placement.kind() == BlockKind.PISTON
-                && state.getBlock() instanceof PistonBlock
-                && state.get(PistonBlock.FACING) == placement.facing()
-            || placement.kind() == BlockKind.REDSTONE && state.getBlock() instanceof RedstoneBlock;
+                && state.getBlock() instanceof PistonBaseBlock
+                && state.getValue(BlockStateProperties.FACING) == placement.facing()
+            || placement.kind() == BlockKind.REDSTONE && state.is(Blocks.REDSTONE_BLOCK);
     }
 
-    private Vec3d crystalVector(BlockPos pos) {
-        return new Vec3d(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+    private Vec3 crystalVector(BlockPos pos) {
+        return new Vec3(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
     }
 
     private int findItem(Item item) {
@@ -536,7 +540,7 @@ public class PushCrystal extends LeavesModule {
         if (realSide != null) return realSide;
 
         for (Direction side : Direction.values()) {
-            BlockPos support = pos.offset(side);
+            BlockPos support = pos.relative(side);
             if (planned.contains(support) && isVirtualSupportDirection(support, side.getOpposite())) return side;
             if (isSolidSupport(support) && BlockUtil.isGrimDirection(support, side.getOpposite())) return side;
         }
@@ -545,9 +549,9 @@ public class PushCrystal extends LeavesModule {
     private boolean isVirtualSupportDirection(BlockPos support, Direction direction) {
         double minEyeY = mc.player.getY() + 0.4;
         double maxEyeY = mc.player.getY() + 1.62;
-        Box eyePositions = new Box(mc.player.getX(), minEyeY, mc.player.getZ(),
-            mc.player.getX(), maxEyeY, mc.player.getZ()).expand(0.0002);
-        Box supportBox = new Box(support);
+        AABB eyePositions = new AABB(mc.player.getX(), minEyeY, mc.player.getZ(),
+            mc.player.getX(), maxEyeY, mc.player.getZ()).inflate(0.0002);
+        AABB supportBox = new AABB(support);
 
         boolean intersects = supportBox.maxX - 1.0e-7 > eyePositions.minX
             && supportBox.minX + 1.0e-7 < eyePositions.maxX
@@ -568,8 +572,8 @@ public class PushCrystal extends LeavesModule {
     }
 
     private boolean isSolidSupport(BlockPos pos) {
-        BlockState state = mc.world.getBlockState(pos);
-        return state.isSolid() || state.getBlock() instanceof RedstoneBlock;
+        BlockState state = mc.level.getBlockState(pos);
+        return state.isSolid() || state.is(Blocks.REDSTONE_BLOCK);
     }
 
     private static final Direction[] HORIZONTAL_DIRECTIONS = {
@@ -586,7 +590,7 @@ public class PushCrystal extends LeavesModule {
 
     public record Placement(BlockPos pos, BlockKind kind, Direction facing) {
         public Placement {
-            pos = pos.toImmutable();
+            pos = pos.immutable();
         }
     }
 
@@ -601,8 +605,8 @@ public class PushCrystal extends LeavesModule {
         float selfDamage
     ) {
         public CrystalPushPlan {
-            pos1 = pos1.toImmutable();
-            pos2 = pos2.toImmutable();
+            pos1 = pos1.immutable();
+            pos2 = pos2.immutable();
             pistonPositions = List.copyOf(pistonPositions);
             redstonePositions = List.copyOf(redstonePositions);
             placements = List.copyOf(placements);
@@ -678,7 +682,7 @@ public class PushCrystal extends LeavesModule {
                 if (!pistonReady) continue;
 
                 for (Direction side : Direction.values()) {
-                    BlockPos redstone = piston.offset(side);
+                    BlockPos redstone = piston.relative(side);
                     if (redstone.equals(pos2)) continue;
                     if (isRedstoneAt(redstone) || planned.get(redstone) == BlockKind.REDSTONE) return true;
                 }
@@ -692,7 +696,7 @@ public class PushCrystal extends LeavesModule {
             for (BlockPos piston : pistons) {
                 for (Direction side : Direction.values()) {
                     if (side == facing) continue;
-                    BlockPos redstone = piston.offset(side);
+                    BlockPos redstone = piston.relative(side);
                     if (redstone.equals(pos2) || pistonSet.contains(redstone)) continue;
                     if (isRedstoneAt(redstone) || BlockUtil.canReplace(redstone)) result.add(redstone);
                 }
@@ -701,12 +705,12 @@ public class PushCrystal extends LeavesModule {
         }
 
         private boolean isPistonAt(BlockPos pos) {
-            BlockState state = mc.world.getBlockState(pos);
-            return state.getBlock() instanceof PistonBlock && state.get(PistonBlock.FACING) == face1;
+            BlockState state = mc.level.getBlockState(pos);
+            return state.getBlock() instanceof PistonBaseBlock && state.getValue(BlockStateProperties.FACING) == face1;
         }
 
         private boolean isRedstoneAt(BlockPos pos) {
-            return mc.world.getBlockState(pos).getBlock() == Blocks.REDSTONE_BLOCK;
+            return mc.level.getBlockState(pos).getBlock() == Blocks.REDSTONE_BLOCK;
         }
 
         private String key(Map<BlockPos, BlockKind> planned) {
